@@ -40,7 +40,7 @@ namespace vsroleplaychat.src
         private void OnPlayerChat(IServerPlayer byPlayer, int channelId, ref string message, ref string data, BoolRef consumed)
         {
             consumed.value = true;
-            SendLocal(byPlayer, StripDefaultChatPrefix(message));
+            SendOoc(byPlayer, StripDefaultChatPrefix(message));
         }
 
         private string StripDefaultChatPrefix(string message)
@@ -119,7 +119,7 @@ namespace vsroleplaychat.src
 
         private void CmdLocal(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendOoc(player, args[0]);
+            SendLocal(player, args[0]);
         }
 
         public override double ExecuteOrder()
@@ -136,7 +136,7 @@ namespace vsroleplaychat.src
             /// - Block and Item Loader: 0.2
             /// - Recipes (Smithing, Knapping, Clayforming, Grid recipes, Alloys) Loader: 1
             /// 
-            return 0;
+            return 1.1;
         }
     }
 }
