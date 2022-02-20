@@ -67,6 +67,7 @@
   <ItemGroup>
     <Compile Include="src\EnumRPChannelPrefix.cs" />
     <Compile Include="src\Foundation\Extensions\ApiExtensions.cs" />
+    <Compile Include="src\PlayerNameUtils.cs" />
     <Compile Include="src\VSRoleplayChatMod.cs" />
   </ItemGroup>
   <ItemGroup>
