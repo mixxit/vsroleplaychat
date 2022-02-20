@@ -37,20 +37,6 @@ namespace vsroleplaychat.src
             base.StartServerSide(api);
         }
 
-        private string GetFullRoleplayName(EntityPlayer player)
-        {
-            var fullName = PlayerNameUtils.CleanupRoleplayName(player.WatchedAttributes.GetString("roleplaySurname", "")) + " " + PlayerNameUtils.CleanupRoleplayName((player.WatchedAttributes.GetString("roleplayForename", "")));
-            fullName.TrimEnd();
-
-            if (String.IsNullOrEmpty(fullName))
-                return PlayerNameUtils.CleanupRoleplayName(player.GetName()).TrimEnd();
-
-            if (fullName.Length > 16)
-                return PlayerNameUtils.CleanupRoleplayName(player.GetName()).TrimEnd();
-
-            return fullName;
-        }
-
         private void OnPlayerChat(IServerPlayer byPlayer, int channelId, ref string message, ref string data, BoolRef consumed)
         {
             consumed.value = true;
@@ -106,7 +92,7 @@ namespace vsroleplaychat.src
             if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
                 chatType = EnumChatType.OthersMessage;
 
-            var prefix = "["+ rpChannelPrefix.ToString()+"] " + GetFullRoleplayName(sourcePlayer.Entity) + ": ";
+            var prefix = "["+ rpChannelPrefix.ToString()+"] " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity) + ": ";
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, prefix + message, chatType);
         }
 
@@ -116,7 +102,7 @@ namespace vsroleplaychat.src
             if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
                 chatType = EnumChatType.OthersMessage;
 
-            var prefix = "* " + GetFullRoleplayName(sourcePlayer.Entity) + " ";
+            var prefix = "* " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity) + " ";
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, prefix + message, chatType);
         }
 
