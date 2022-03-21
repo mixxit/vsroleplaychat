@@ -108,18 +108,18 @@ namespace vsroleplaychat.src
 
         private void CmdOoc(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendOoc(player, args[0]);
+            SendOoc(player, String.Join(" ",args));
         }
 
         private void CmdEmote(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendEmote(player, args[0]);
+            SendEmote(player, String.Join(" ", args));
         }
 
 
         private void CmdLocal(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendLocal(player, args[0]);
+            SendLocal(player, String.Join(" ", args));
         }
 
         public override double ExecuteOrder()
