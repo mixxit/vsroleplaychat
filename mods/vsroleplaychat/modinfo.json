@@ -4,7 +4,7 @@
     "name": "vsroleplaychat",
     "authors": [ "mixxit" ],
     "description": "Add local and out of character chat to the game",
-    "version": "1.16.3-rc.7",
+    "version": "1.16.3-rc.8",
     "dependencies": {
         "game": "1.16.3"
     },

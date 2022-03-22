@@ -8,6 +8,7 @@ namespace vsroleplaychat.src
 {
     public class VSRoleplayChatMod : ModSystem
     {
+        Random rand;
         private ICoreServerAPI csapi;
         private int localChatDistance = 700;
 
@@ -33,8 +34,33 @@ namespace vsroleplaychat.src
             api.RegisterCommand("emote", "sends an emote to local roleplay chat", "", CmdEmote, null);
             api.RegisterCommand("e", "sends an emote to local roleplay chat", "", CmdEmote, null);
             api.RegisterCommand("do", "sends an emote to local roleplay chat", "", CmdEmote, null);
+            api.RegisterCommand("roll", "rolls a dice", "", CmdRoll, null);
             this.csapi = api;
             base.StartServerSide(api);
+        }
+
+        public override void Start(ICoreAPI api)
+        {
+            rand = new Random();
+            base.Start(api);
+
+        }
+
+        private void CmdRoll(IServerPlayer player, int groupId, CmdArgs args)
+        {
+            int maxnumber = 1;
+            try
+            {
+                maxnumber = int.Parse(args[0]);
+            }
+            catch (Exception)
+            {
+                player.SendMessage(groupId, $"Invalid number ", EnumChatType.CommandError);
+                return;
+            }
+
+            String message = "rolls 1d" + maxnumber + ". It's a " + rand.Next(1, maxnumber + 1) + "!";
+            SendEmote(player, message, true);
         }
 
         private void OnPlayerChat(IServerPlayer byPlayer, int channelId, ref string message, ref string data, BoolRef consumed)
@@ -56,14 +82,14 @@ namespace vsroleplaychat.src
                 SendMessage(sourcePlayer, player, EnumRPChannelPrefix.OutOfCharacter, message);
         }
 
-        private void SendEmote(IServerPlayer sourcePlayer, string message)
+        private void SendEmote(IServerPlayer sourcePlayer, string message, bool prefixNonUserEmote = false)
         {
             foreach (var player in csapi.Server.Players)
             {
                 if (player.Entity.ServerPos.SquareDistanceTo(sourcePlayer.Entity.ServerPos) > localChatDistance)
                     continue;
 
-                SendEmoteLocally(sourcePlayer, player, message);
+                SendEmoteLocally(sourcePlayer, player, message, prefixNonUserEmote);
             }
         }
 
@@ -96,30 +122,44 @@ namespace vsroleplaychat.src
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, prefix + message, chatType);
         }
 
-        private void SendEmoteLocally(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message)
+        private void SendEmoteLocally(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message, bool prefixNonUserEmote = false)
         {
             var chatType = EnumChatType.OwnMessage;
             if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
                 chatType = EnumChatType.OthersMessage;
 
+            // used to prevent /roll fraud
             var prefix = "* " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity) + " ";
+            if (prefixNonUserEmote)
+                prefix = "[A]" + prefix;
+
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, prefix + message, chatType);
         }
 
         private void CmdOoc(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendOoc(player, String.Join(" ",args));
+            SendOoc(player, ArgsToString(args));
         }
 
         private void CmdEmote(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendEmote(player, String.Join(" ", args));
+            SendEmote(player, ArgsToString(args));
         }
 
+        private string ArgsToString(CmdArgs args)
+        {
+            var message = "";
+            for (int i = 0; i < args.Length; i++)
+            {
+                message += args[i] + " ";
+            }
+
+            return message.TrimEnd();
+        }
 
         private void CmdLocal(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendLocal(player, String.Join(" ", args));
+            SendLocal(player, ArgsToString(args));
         }
 
         public override double ExecuteOrder()
