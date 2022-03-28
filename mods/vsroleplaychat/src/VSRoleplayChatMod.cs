@@ -120,6 +120,10 @@ namespace vsroleplaychat.src
 
             var prefix = "["+ rpChannelPrefix.ToString()+"] " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity) + ": ";
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, prefix + message, chatType);
+
+            // LOG IT
+            if (sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
+                sourcePlayer.Entity.Api.Logger.Chat(sourcePlayer.PlayerName + "@" + prefix + message);
         }
 
         private void SendEmoteLocally(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message, bool prefixNonUserEmote = false)
@@ -134,6 +138,10 @@ namespace vsroleplaychat.src
                 prefix = "[A]" + prefix;
 
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, prefix + message, chatType);
+
+            // LOG IT
+            if (sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
+                sourcePlayer.Entity.Api.Logger.Chat(sourcePlayer.PlayerName + "@" + prefix + message);
         }
 
         private void CmdOoc(IServerPlayer player, int groupId, CmdArgs args)
