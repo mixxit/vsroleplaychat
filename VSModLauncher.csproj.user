@@ -3,14 +3,14 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|AnyCPU'">
     <StartAction>Program</StartAction>
     <StartProgram>$(AppData)\Vintagestory\Vintagestory.exe</StartProgram>
-    <StartArguments>--openWorld="modsamplestest" -pcreativebuilding --addModPath="$(SolutionDir)mods" --tracelog</StartArguments>
+    <StartArguments>-pcreativebuilding --addModPath="C:\dev\git\vsroleplaychat\mods"</StartArguments>
     <StartWorkingDirectory>$(AppData)\Vintagestory\</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|AnyCPU'">
     <StartAction>Program</StartAction>
     <StartProgram>$(AppData)\Vintagestory\Vintagestory.exe</StartProgram>
-    <StartArguments>--openWorld="modsamplestest" -p3 --addModPath="$(SolutionDir)mods" --tracelog</StartArguments>
-	<StartWorkingDirectory>$(AppData)\Vintagestory\</StartWorkingDirectory>
+    <StartArguments>--openWorld="modsamplestest" -p3 --addModPath="$(SolutionDir)mods"</StartArguments>
+    <StartWorkingDirectory>$(AppData)\Vintagestory\</StartWorkingDirectory>
   </PropertyGroup>
   <PropertyGroup>
     <ReferencePath>$(AppData)\Vintagestory\;$(AppData)\Vintagestory\Lib\</ReferencePath>

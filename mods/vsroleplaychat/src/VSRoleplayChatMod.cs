@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Drawing;
 using Vintagestory.API.Common;
 using Vintagestory.API.Config;
 using Vintagestory.API.Datastructures;
+using Vintagestory.API.MathTools;
 using Vintagestory.API.Server;
 
 namespace vsroleplaychat.src
@@ -11,6 +13,10 @@ namespace vsroleplaychat.src
         Random rand;
         private ICoreServerAPI csapi;
         private int localChatDistance = 700;
+        private int shoutChatDistance = 2000;
+        public Color oocColor = Color.White;
+        public Color emoteColor = Color.Aquamarine;
+        public Color shoutColor = Color.Red;
 
         public override void StartPre(ICoreAPI api)
         {
@@ -27,12 +33,17 @@ namespace vsroleplaychat.src
             api.Event.PlayerChat += this.OnPlayerChat;
             api.RegisterCommand("ooc", "sends a message to ooc", "", CmdOoc, null);
             api.RegisterCommand("o", "sends a message to ooc", "", CmdOoc, null);
+            api.RegisterCommand("oo", "sends a message to ooc", "", CmdOoc, null);
             api.RegisterCommand("global", "sends a message to ooc", "", CmdOoc, null);
             api.RegisterCommand("local", "sends a message to local roleplay chat", "", CmdLocal, null);
+            api.RegisterCommand("loc", "sends a message to local roleplay chat", "", CmdLocal, null);
+            api.RegisterCommand("lo", "sends a message to local roleplay chat", "", CmdLocal, null);
             api.RegisterCommand("l", "sends a message to local roleplay chat", "", CmdLocal, null);
             api.RegisterCommand("say", "sends a message to local roleplay chat", "", CmdLocal, null);
+            api.RegisterCommand("shout", "shouts a message to local roleplay chat", "", CmdShout, null);
             api.RegisterCommand("emote", "sends an emote to local roleplay chat", "", CmdEmote, null);
             api.RegisterCommand("e", "sends an emote to local roleplay chat", "", CmdEmote, null);
+            api.RegisterCommand("em", "sends an emote to local roleplay chat", "", CmdEmote, null);
             api.RegisterCommand("do", "sends an emote to local roleplay chat", "", CmdEmote, null);
             api.RegisterCommand("roll", "rolls a dice", "", CmdRoll, null);
             this.csapi = api;
@@ -55,7 +66,7 @@ namespace vsroleplaychat.src
             }
             catch (Exception)
             {
-                player.SendMessage(groupId, $"Invalid number ", EnumChatType.CommandError);
+                player.SendMessage(groupId, "Invalid number ", EnumChatType.CommandError);
                 return;
             }
 
@@ -79,7 +90,7 @@ namespace vsroleplaychat.src
         private void SendOoc(IServerPlayer sourcePlayer, string message)
         {
             foreach (var player in csapi.Server.Players)
-                SendMessage(sourcePlayer, player, EnumRPChannelPrefix.OutOfCharacter, message);
+                SendOOCMessage(sourcePlayer, player, message);
         }
 
         private void SendEmote(IServerPlayer sourcePlayer, string message, bool prefixNonUserEmote = false)
@@ -94,15 +105,15 @@ namespace vsroleplaychat.src
         }
 
 
-        private void SendLocal(IServerPlayer sourcePlayer, string message)
+        private void SendLocal(IServerPlayer sourcePlayer, string message, bool shouting = false)
         {
             bool didAnyoneHear = false;
             foreach (var player in csapi.Server.Players)
             {
-                if (player.Entity.ServerPos.SquareDistanceTo(sourcePlayer.Entity.ServerPos) > localChatDistance)
+                if (player.Entity.ServerPos.SquareDistanceTo(sourcePlayer.Entity.ServerPos) > (shouting ? shoutChatDistance : localChatDistance))
                     continue;
 
-                SendMessage(sourcePlayer, player, EnumRPChannelPrefix.NearbyRoleplay, message);
+                SendLocalMessage(sourcePlayer, player, message, shouting);
                 if (didAnyoneHear == false && !sourcePlayer.PlayerUID.Equals(player.PlayerUID))
                     didAnyoneHear = true;
             }
@@ -111,33 +122,57 @@ namespace vsroleplaychat.src
                 sourcePlayer.SendMessage(GlobalConstants.GeneralChatGroup, "* You sense no one is close enough to hear you", EnumChatType.Notification);
         }
 
-
-        private void SendMessage(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, EnumRPChannelPrefix rpChannelPrefix, string message)
+        private void SendOOCMessage(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message)
         {
             var chatType = EnumChatType.OwnMessage;
             if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
                 chatType = EnumChatType.OthersMessage;
 
-            var prefix = "["+ rpChannelPrefix.ToString()+"] " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity) + ": ";
-            destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, prefix + message, chatType);
+            var prefix = "[" + EnumRPChannelPrefix.OutOfCharacter.ToString() + "] ";
+            destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, 
+                HexColor.ColorMessage(oocColor, prefix + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity, oocColor, true) + ": " + message), chatType);
 
             // LOG IT
             if (sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
-                sourcePlayer.Entity.Api.Logger.Chat(sourcePlayer.PlayerName + "@" + prefix + message);
+                sourcePlayer.Entity.Api.Logger.Chat(sourcePlayer.PlayerName + "@" + prefix + HexColor.ColorMessage(oocColor, message));
+        }
+
+        private void SendLocalMessage(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message, bool shouting)
+        {
+            var seperator = shouting == false ? " says " : " shouts ";
+            var color = shouting == false ? emoteColor : shoutColor;
+
+            if (shouting)
+                message = message.ToUpper();
+
+            var chatType = EnumChatType.OwnMessage;
+            if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
+                chatType = EnumChatType.OthersMessage;
+
+            var prefix = "[" + EnumRPChannelPrefix.NearbyRoleplay.ToString()+"] " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity, null, false);
+            destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, HexColor.ColorMessage(color, prefix + seperator + "'" +message+"'"), chatType);
+
+            // LOG IT
+            if (sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
+                sourcePlayer.Entity.Api.Logger.Chat(sourcePlayer.PlayerName + "@" + prefix + HexColor.ColorMessage(emoteColor, message));
         }
 
         private void SendEmoteLocally(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message, bool prefixNonUserEmote = false)
         {
+            var messageColor = emoteColor;
+
             var chatType = EnumChatType.OwnMessage;
             if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
                 chatType = EnumChatType.OthersMessage;
 
             // used to prevent /roll fraud
-            var prefix = "* " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity) + " ";
+            var prefix = "";
             if (prefixNonUserEmote)
-                prefix = "[A]" + prefix;
+                prefix = "[A] ";
 
-            destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, prefix + message, chatType);
+            prefix += "* " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity,null, false) + " ";
+
+            destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, HexColor.ColorMessage(messageColor, prefix + message), chatType);
 
             // LOG IT
             if (sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
@@ -168,6 +203,11 @@ namespace vsroleplaychat.src
         private void CmdLocal(IServerPlayer player, int groupId, CmdArgs args)
         {
             SendLocal(player, ArgsToString(args));
+        }
+
+        private void CmdShout(IServerPlayer player, int groupId, CmdArgs args)
+        {
+            SendLocal(player, ArgsToString(args), true);
         }
 
         public override double ExecuteOrder()
