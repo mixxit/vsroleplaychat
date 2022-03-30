@@ -46,6 +46,12 @@ namespace vsroleplaychat.src
             api.RegisterCommand("em", "sends an emote to local roleplay chat", "", CmdEmote, null);
             api.RegisterCommand("do", "sends an emote to local roleplay chat", "", CmdEmote, null);
             api.RegisterCommand("roll", "rolls a dice", "", CmdRoll, null);
+            api.RegisterCommand("npcsay", "makes an npc say something", "", CmdEntitySay, "root");
+            api.RegisterCommand("npcdo", "makes an npc emote something", "", CmdEntityDo, "root");
+            api.RegisterCommand("entitysay", "makes an npc say something", "", CmdEntitySay, "root");
+            api.RegisterCommand("entitydo", "makes an npc emote something", "", CmdEntityDo, "root");
+            api.RegisterCommand("npcnear", "list entity ids for nearby entities", "", CmdEntityNear, "root");
+            api.RegisterCommand("entitynear", "list entity ids for nearby entities", "", CmdEntityNear, "root");
             this.csapi = api;
             base.StartServerSide(api);
         }
@@ -55,6 +61,29 @@ namespace vsroleplaychat.src
             rand = new Random();
             base.Start(api);
 
+        }
+
+        private void CmdEntityNear(IServerPlayer player, int groupId, CmdArgs args)
+        {
+            int distance = 5;
+            if (args.Length > 0)
+            {
+
+                try
+                {
+                    distance = int.Parse(args[0]);
+                }
+                catch (Exception)
+                {
+                    player.SendMessage(groupId, "Invalid distance number ", EnumChatType.CommandError);
+                    return;
+                }
+            }
+
+            player.SendMessage(groupId, "Entitynear Distance: " + distance, EnumChatType.CommandError);
+
+            foreach (var entity in player.Entity.World.GetEntitiesAround(new Vec3d(player.Entity.Pos.X, player.Entity.Pos.Y, player.Entity.Pos.Z), distance, distance))
+                player.SendMessage(groupId, entity.EntityId + ": " + entity.GetName() + " Distance: " + player.Entity.ServerPos.SquareDistanceTo(entity.ServerPos), EnumChatType.CommandError);
         }
 
         private void CmdRoll(IServerPlayer player, int groupId, CmdArgs args)
@@ -71,13 +100,13 @@ namespace vsroleplaychat.src
             }
 
             String message = "rolls 1d" + maxnumber + ". It's a " + rand.Next(1, maxnumber + 1) + "!";
-            SendEmote(player, message, true);
+            SendEmote(player.Entity, message, true);
         }
 
         private void OnPlayerChat(IServerPlayer byPlayer, int channelId, ref string message, ref string data, BoolRef consumed)
         {
             consumed.value = true;
-            SendOoc(byPlayer, StripDefaultChatPrefix(message));
+            SendOoc(byPlayer.Entity, StripDefaultChatPrefix(message));
         }
 
         private string StripDefaultChatPrefix(string message)
@@ -87,57 +116,57 @@ namespace vsroleplaychat.src
             return message.Trim();
         }
 
-        private void SendOoc(IServerPlayer sourcePlayer, string message)
+        private void SendOoc(EntityAgent sourceEntity, string message)
         {
             foreach (var player in csapi.Server.Players)
-                SendOOCMessage(sourcePlayer, player, message);
+                SendOOCMessage(sourceEntity, player, message);
         }
 
-        private void SendEmote(IServerPlayer sourcePlayer, string message, bool prefixNonUserEmote = false)
+        private void SendEmote(EntityAgent sourceEntity, string message, bool prefixNonUserEmote = false)
         {
             foreach (var player in csapi.Server.Players)
             {
-                if (player.Entity.ServerPos.SquareDistanceTo(sourcePlayer.Entity.ServerPos) > localChatDistance)
+                if (player.Entity.ServerPos.SquareDistanceTo(sourceEntity.ServerPos) > localChatDistance)
                     continue;
 
-                SendEmoteLocally(sourcePlayer, player, message, prefixNonUserEmote);
+                SendEmoteLocally(sourceEntity, player, message, prefixNonUserEmote);
             }
         }
 
 
-        private void SendLocal(IServerPlayer sourcePlayer, string message, bool shouting = false)
+        private void SendLocal(EntityAgent sourceEntity, string message, bool shouting = false)
         {
             bool didAnyoneHear = false;
             foreach (var player in csapi.Server.Players)
             {
-                if (player.Entity.ServerPos.SquareDistanceTo(sourcePlayer.Entity.ServerPos) > (shouting ? shoutChatDistance : localChatDistance))
+                if (player.Entity.ServerPos.SquareDistanceTo(sourceEntity.ServerPos) > (shouting ? shoutChatDistance : localChatDistance))
                     continue;
 
-                SendLocalMessage(sourcePlayer, player, message, shouting);
-                if (didAnyoneHear == false && !sourcePlayer.PlayerUID.Equals(player.PlayerUID))
+                SendLocalMessage(sourceEntity, player, message, shouting);
+                if (didAnyoneHear == false && !sourceEntity.EntityId.Equals(player.Entity.EntityId))
                     didAnyoneHear = true;
             }
 
-            if (didAnyoneHear == false)
-                sourcePlayer.SendMessage(GlobalConstants.GeneralChatGroup, "* You sense no one is close enough to hear you", EnumChatType.Notification);
+            if (didAnyoneHear == false && sourceEntity is EntityPlayer && ((EntityPlayer)sourceEntity)?.Player != null && ((EntityPlayer)sourceEntity)?.Player is IServerPlayer)
+                ((IServerPlayer)((EntityPlayer)sourceEntity)?.Player).SendMessage(GlobalConstants.GeneralChatGroup, "* You sense no one is close enough to hear you", EnumChatType.Notification);
         }
 
-        private void SendOOCMessage(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message)
+        private void SendOOCMessage(EntityAgent sourceEntity, IServerPlayer destinationPlayer, string message)
         {
             var chatType = EnumChatType.OwnMessage;
-            if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
+            if (!sourceEntity.EntityId.Equals(destinationPlayer.Entity.EntityId))
                 chatType = EnumChatType.OthersMessage;
 
             var prefix = "[" + EnumRPChannelPrefix.OutOfCharacter.ToString() + "] ";
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, 
-                HexColor.ColorMessage(oocColor, prefix + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity, oocColor, true) + ": " + message), chatType);
+                HexColor.ColorMessage(oocColor, prefix + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourceEntity, oocColor, true) + ": " + message), chatType);
 
             // LOG IT
-            if (sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
-                sourcePlayer.Entity.Api.Logger.Chat(sourcePlayer.PlayerName + "@" + prefix + HexColor.ColorMessage(oocColor, message));
+            if (sourceEntity.EntityId.Equals(destinationPlayer.Entity.EntityId))
+                sourceEntity.Api.Logger.Chat(sourceEntity.GetName() + "@" + prefix + HexColor.ColorMessage(oocColor, message));
         }
 
-        private void SendLocalMessage(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message, bool shouting)
+        private void SendLocalMessage(EntityAgent sourceEntity, IServerPlayer destinationPlayer, string message, bool shouting)
         {
             var seperator = shouting == false ? " says " : " shouts ";
             var color = shouting == false ? emoteColor : shoutColor;
@@ -146,23 +175,23 @@ namespace vsroleplaychat.src
                 message = message.ToUpper();
 
             var chatType = EnumChatType.OwnMessage;
-            if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
+            if (!sourceEntity.EntityId.Equals(destinationPlayer.Entity.EntityId))
                 chatType = EnumChatType.OthersMessage;
 
-            var prefix = "[" + EnumRPChannelPrefix.NearbyRoleplay.ToString()+"] " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity, null, false);
+            var prefix = "[" + EnumRPChannelPrefix.NearbyRoleplay.ToString()+"] " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourceEntity, null, false);
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, HexColor.ColorMessage(color, prefix + seperator + "'" +message+"'"), chatType);
 
             // LOG IT
-            if (sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
-                sourcePlayer.Entity.Api.Logger.Chat(sourcePlayer.PlayerName + "@" + prefix + HexColor.ColorMessage(emoteColor, message));
+            if (sourceEntity.EntityId.Equals(destinationPlayer.Entity.EntityId))
+                sourceEntity.Api.Logger.Chat(sourceEntity.GetName() + "@" + prefix + HexColor.ColorMessage(emoteColor, message));
         }
 
-        private void SendEmoteLocally(IServerPlayer sourcePlayer, IServerPlayer destinationPlayer, string message, bool prefixNonUserEmote = false)
+        private void SendEmoteLocally(EntityAgent sourceEntity, IServerPlayer destinationPlayer, string message, bool prefixNonUserEmote = false)
         {
             var messageColor = emoteColor;
 
             var chatType = EnumChatType.OwnMessage;
-            if (!sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
+            if (!sourceEntity.EntityId.Equals(destinationPlayer.Entity.EntityId))
                 chatType = EnumChatType.OthersMessage;
 
             // used to prevent /roll fraud
@@ -170,44 +199,111 @@ namespace vsroleplaychat.src
             if (prefixNonUserEmote)
                 prefix = "[A] ";
 
-            prefix += "* " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourcePlayer.Entity,null, false) + " ";
+            prefix += "* " + PlayerNameUtils.GetFullRoleplayNameAsDisplayFormat(sourceEntity, null, false) + " ";
 
             destinationPlayer.SendMessage(GlobalConstants.GeneralChatGroup, HexColor.ColorMessage(messageColor, prefix + message), chatType);
 
             // LOG IT
-            if (sourcePlayer.PlayerUID.Equals(destinationPlayer.PlayerUID))
-                sourcePlayer.Entity.Api.Logger.Chat(sourcePlayer.PlayerName + "@" + prefix + message);
+            if (sourceEntity.EntityId.Equals(destinationPlayer.Entity.EntityId))
+                sourceEntity.Api.Logger.Chat(sourceEntity.GetName() + "@" + prefix + message);
         }
 
         private void CmdOoc(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendOoc(player, ArgsToString(args));
+            SendOoc(player.Entity, ArgsToString(args));
         }
 
         private void CmdEmote(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendEmote(player, ArgsToString(args));
+            SendEmote(player.Entity, ArgsToString(args));
         }
 
-        private string ArgsToString(CmdArgs args)
+        private string ArgsToString(CmdArgs args, int skip = 0)
         {
             var message = "";
             for (int i = 0; i < args.Length; i++)
             {
+                if (skip > 0 && i <= (skip - 1))
+                    continue;
+
                 message += args[i] + " ";
             }
 
             return message.TrimEnd();
         }
 
+        private void CmdEntitySay(IServerPlayer player, int groupId, CmdArgs args)
+        {
+            long entityId = 0;
+
+            if (args.Length > 0)
+            {
+
+                try
+                {
+                    entityId = Convert.ToInt64(args[0]);
+                }
+                catch (Exception)
+                {
+                    player.SendMessage(groupId, "Invalid entityId", EnumChatType.CommandError);
+                    return;
+                }
+            }
+            else
+            {
+                player.SendMessage(groupId, "Invalid entityId", EnumChatType.CommandError);
+                return;
+            }
+
+            var entity = player.Entity.World.GetEntityById(entityId);
+            if (entity == null || !(entity is EntityAgent))
+            {
+                player.SendMessage(GlobalConstants.CurrentChatGroup, "Cannot find entity agent by id : " + entityId, EnumChatType.CommandError);
+                return;
+            }
+            SendLocal((EntityAgent)entity, ArgsToString(args, 1));
+        }
+
+        private void CmdEntityDo(IServerPlayer player, int groupId, CmdArgs args)
+        {
+            long entityId = 0;
+
+            if (args.Length > 0)
+            {
+
+                try
+                {
+                    entityId = Convert.ToInt64(args[0]);
+                }
+                catch (Exception)
+                {
+                    player.SendMessage(groupId, "Invalid entityId", EnumChatType.CommandError);
+                    return;
+                }
+            } else
+            {
+                player.SendMessage(groupId, "Invalid entityId", EnumChatType.CommandError);
+                return;
+            }
+            
+            var entity = player.Entity.World.GetEntityById(entityId);
+            if (entity == null || !(entity is EntityAgent))
+            {
+                player.SendMessage(GlobalConstants.CurrentChatGroup, "Cannot find entity agent by id : " + entityId, EnumChatType.CommandError);
+                return;
+            }
+
+            SendEmote((EntityAgent)entity, ArgsToString(args, 1));
+        }
+
         private void CmdLocal(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendLocal(player, ArgsToString(args));
+            SendLocal(player.Entity, ArgsToString(args));
         }
 
         private void CmdShout(IServerPlayer player, int groupId, CmdArgs args)
         {
-            SendLocal(player, ArgsToString(args), true);
+            SendLocal(player.Entity, ArgsToString(args), true);
         }
 
         public override double ExecuteOrder()

@@ -30,22 +30,25 @@ namespace vsroleplaychat.src
             return playerName;
         }
 
-        public static string GetFullRoleplayNameAsDisplayFormat(EntityPlayer player, Color? fallbackColor = null, bool colorPlayersRole = false)
+        public static string GetFullRoleplayNameAsDisplayFormat(EntityAgent entity, Color? fallbackColor = null, bool colorPlayersRole = false)
         {
-            var foreName = FirstCharToUpper(PlayerNameUtils.CleanupRoleplayName(player.WatchedAttributes.GetString("roleplayForename", "")).TrimEnd());
-            var lastName = FirstCharToUpper(PlayerNameUtils.CleanupRoleplayName(player.WatchedAttributes.GetString("roleplaySurname", "")).TrimEnd());
-
-            var name = foreName + lastName;
-            if (String.IsNullOrEmpty(foreName + lastName))
-                name = FirstCharToUpper(PlayerNameUtils.CleanupRoleplayName(player.GetName()).TrimEnd()); ;
-
-            if ((foreName + lastName).Length > 16)
-                name = FirstCharToUpper(PlayerNameUtils.CleanupRoleplayName(player.GetName()).TrimEnd());
-
-            if (colorPlayersRole && player?.Player is IServerPlayer)
+            var name = entity.GetName();
+            if (entity is EntityPlayer)
             {
-                var roleCOlor = ((IServerPlayer)player?.Player).Role.Color;
-                name = HexColor.ColorMessage(((IServerPlayer)player?.Player).Role.Color, name);
+                var foreName = FirstCharToUpper(PlayerNameUtils.CleanupRoleplayName(entity.WatchedAttributes.GetString("roleplayForename", "")).TrimEnd());
+                var lastName = FirstCharToUpper(PlayerNameUtils.CleanupRoleplayName(entity.WatchedAttributes.GetString("roleplaySurname", "")).TrimEnd());
+
+                name = foreName + lastName;
+                if (String.IsNullOrEmpty(foreName + lastName))
+                    name = FirstCharToUpper(PlayerNameUtils.CleanupRoleplayName(entity.GetName()).TrimEnd()); ;
+
+                if ((foreName + lastName).Length > 16)
+                    name = FirstCharToUpper(PlayerNameUtils.CleanupRoleplayName(entity.GetName()).TrimEnd());
+            }
+
+            if (colorPlayersRole && entity is EntityPlayer && ((EntityPlayer)entity)?.Player is IServerPlayer)
+            {
+                name = HexColor.ColorMessage(((IServerPlayer)((EntityPlayer)entity)?.Player).Role.Color, name);
             }
             else if (fallbackColor != null)
             {
